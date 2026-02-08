@@ -1189,10 +1189,10 @@ show_collision_report() {
 
 get_install_strategy() {
     echo -e "${BOLD}How would you like to proceed?${NC}\n" >&2
-    echo "  1) ${GREEN}Skip existing${NC} - Only install new files, keep all existing files unchanged" >&2
-    echo "  2) ${YELLOW}Overwrite all${NC} - Replace existing files with new versions (your changes will be lost)" >&2
-    echo "  3) ${CYAN}Backup & overwrite${NC} - Backup existing files, then install new versions" >&2
-    echo "  4) ${RED}Cancel${NC} - Exit without making changes" >&2
+    echo -e "  1) ${GREEN}Skip existing${NC} - Only install new files, keep all existing files unchanged" >&2
+    echo -e "  2) ${YELLOW}Overwrite all${NC} - Replace existing files with new versions (your changes will be lost)" >&2
+    echo -e "  3) ${CYAN}Backup & overwrite${NC} - Backup existing files, then install new versions" >&2
+    echo -e "  4) ${RED}Cancel${NC} - Exit without making changes" >&2
     echo "" >&2
     read -r -p "Enter your choice [1-4]: " strategy_choice
     
@@ -1441,6 +1441,9 @@ perform_installation() {
 
 show_agent_model_recommendations() {
     print_step "Agent Model Recommendations"
+
+    fetch_latest_models
+
     # Only show if providers are configured AND models were accepted
     if [ "$CONNECTED_PROVIDERS_CONFIGURED" = false ]; then
         echo -e "To get the best experience with your installed agents:${NC}\n"
@@ -1464,6 +1467,14 @@ show_agent_model_recommendations() {
         echo "  These models work without any provider configuration!"
         echo ""
         
+        return
+    fi
+    
+    # Check if SELECTED_COMPONENTS is available and populated
+    if [ ${#SELECTED_COMPONENTS[@]} -eq 0 ]; then
+        print_info "No components were selected for installation."
+        print_info "Run the installer again to select components."
+        echo ""
         return
     fi
     
@@ -1576,17 +1587,17 @@ show_post_install() {
     
     print_step "Next Steps"
     
-    echo "1. Review the installed components in ${CYAN}${INSTALL_DIR}/${NC}"
-    
+    echo -e "1. Review the installed components in ${CYAN}${INSTALL_DIR}/${NC}"
+
     # Check if env.example was installed
     if [ -f "${INSTALL_DIR}/env.example" ] || [ -f "env.example" ]; then
-        echo "2. Copy env.example to .env and configure:"
-        echo "   ${CYAN}cp env.example .env${NC}"
-        echo "3. Start using OpenCode agents:"
+        echo -e "2. Copy env.example to .env and configure:"
+        echo -e "   ${CYAN}cp env.example .env${NC}"
+        echo -e "3. Start using OpenCode agents:"
     else
-        echo "2. Start using OpenCode agents:"
+        echo -e "2. Start using OpenCode agents:"
     fi
-    echo "   ${CYAN}opencode${NC}"
+    echo -e "   ${CYAN}opencode${NC}"
     echo ""
     
     # Show installation location info
