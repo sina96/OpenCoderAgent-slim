@@ -3249,6 +3249,7 @@
         "agent:openagent",
         "agent:opencoder",
         "agent:openplanner",
+        "agent:technical-writer",
         "agent:openarchitect",
         "subagent:task-manager",
         "subagent:frontend-specialist",

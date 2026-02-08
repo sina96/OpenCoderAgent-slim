@@ -1621,10 +1621,59 @@ show_post_install() {
     if [ "$has_backup" -eq 1 ]; then
         print_info "Backup created - you can restore files from ${INSTALL_DIR}.backup.* if needed"
     fi
-    
+
+    if [ "$INSTALL_DIR" = ".opencode" ] && [ -f ".gitignore" ]; then
+        echo ""
+        print_info "Found .gitignore file in current directory"
+
+        if [ "$NON_INTERACTIVE" != true ]; then
+            read -r -p "Add OpenCode folders to .gitignore? [Y/n]: " gitignore_choice
+
+            if [[ ! $gitignore_choice =~ ^[Nn] ]]; then
+                local needs_opencode=false
+                local needs_openplanner=false
+                local needs_openarchitect=false
+
+                if ! grep -q "^\.opencode/$" .gitignore 2>/dev/null; then
+                    needs_opencode=true
+                fi
+                if ! grep -q "^openplanner/$" .gitignore 2>/dev/null; then
+                    needs_openplanner=true
+                fi
+                if ! grep -q "^openarchitect/$" .gitignore 2>/dev/null; then
+                    needs_openarchitect=true
+                fi
+
+                if [ "$needs_opencode" = true ] || [ "$needs_openplanner" = true ] || [ "$needs_openarchitect" = true ]; then
+                    echo "" >> .gitignore
+                    echo "# OpenCode Agent directories" >> .gitignore
+
+                    if [ "$needs_opencode" = true ]; then
+                        echo ".opencode/" >> .gitignore
+                        print_success "Added .opencode/ to .gitignore"
+                    fi
+                    if [ "$needs_openplanner" = true ]; then
+                        echo "openplanner/" >> .gitignore
+                        print_success "Added openplanner/ to .gitignore"
+                    fi
+                    if [ "$needs_openarchitect" = true ]; then
+                        echo "openarchitect/" >> .gitignore
+                        print_success "Added openarchitect/ to .gitignore"
+                    fi
+                else
+                    print_info "All OpenCode folders already in .gitignore"
+                fi
+            else
+                print_info "Skipped adding to .gitignore"
+            fi
+        else
+            print_info "Non-interactive mode - skipping .gitignore update"
+        fi
+    fi
+
     print_info "Documentation: ${REPO_URL}"
     echo ""
-    
+
     cleanup_and_exit 0
 }
 
