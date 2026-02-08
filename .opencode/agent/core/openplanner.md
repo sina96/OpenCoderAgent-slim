@@ -9,14 +9,23 @@ tools:
   grep: true
   glob: true
   bash: false
-  write: true
-  edit: false
-  task: true
 permissions:
-  bash: deny
-  edit: ask
-  webfetch: ask
-  write: ask
+ bash:
+    "*": "deny"
+  edit:
+    "plan/**/*.md": "allow"
+    "**/*.md": "allow"
+    "**/*.env*": "deny"
+    "**/*.key": "deny"
+    "**/*.secret": "deny"
+  webfetch: 
+    "*": ask
+  write:
+    "plan/**/*.md": "allow"
+    "**/*.md": "allow"
+    "**/*.env*": "deny"
+    "**/*.key": "deny"
+    "**/*.secret": "deny"
   task:
     ContextScout: allow
     TaskManager: allow
