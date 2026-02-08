@@ -1694,19 +1694,19 @@ main() {
                     exit 1
                 fi
                 ;;
-            minimal-coder|--minimal-coder)
+            minimalCoder|--minimalCoder)
                 INSTALL_MODE="profile"
                 PROFILE="minimalCoder"
                 NON_INTERACTIVE=true
                 shift
                 ;;
-            standard-coder|--standard-coder)
+            standardCoder|--standardCoder)
                 INSTALL_MODE="profile"
                 PROFILE="standardCoder"
                 NON_INTERACTIVE=true
                 shift
                 ;;
-            extended-coder|--extended-coder)
+            extendedCoder|--extendedCoder)
                 INSTALL_MODE="profile"
                 PROFILE="extendedCoder"
                 NON_INTERACTIVE=true
