@@ -1801,9 +1801,11 @@ main() {
     check_bash_version
     check_dependencies
     fetch_registry
-    
-    # Show connected providers configuration (first step)
-    show_connected_providers_menu
+
+    # Show connected providers configuration (only in interactive mode)
+    if [ -z "$PROFILE" ]; then
+        show_connected_providers_menu
+    fi
 
     if [ -n "$PROFILE" ]; then
         # Non-interactive mode (compatible with bash 3.2+)
