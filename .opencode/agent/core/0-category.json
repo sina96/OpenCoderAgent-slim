@@ -36,6 +36,37 @@
         "core/standards/patterns",
         "core/standards/tests"
       ]
+    },
+    "openplanner": {
+      "description": "Planning specialist",
+      "commonSubagents": [
+        "subagents/core/contextscout",
+        "subagents/core/taskmanager",
+        "subagents/core/externalscout"
+      ],
+      "commonTools": [
+        "env"
+      ],
+      "commonContext": [
+        "core/standards/code",
+        "core/standards/patterns",
+        "core/standards/tests"
+      ]
+    },
+    "openarchitect": {
+      "description": "Architecture specialist",
+      "commonSubagents": [
+        "subagents/core/contextscout",
+        "subagents/core/taskmanager",
+        "subagents/core/externalscout"
+      ],
+      "commonTools": [
+        "env"
+      ],
+      "commonContext": [
+        "core/standards/architecture",
+        "core/standards/patterns"
+      ]
     }
   }
 }

@@ -102,12 +102,12 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/darrenhinde/OpenAgentsControl.git"
+    "url": "https://github.com/sina96/OpenCoderAgent-slim.git"
   },
   "bugs": {
-    "url": "https://github.com/darrenhinde/OpenAgentsControl/issues"
+    "url": "https://github.com/sina96/OpenCoderAgent-slim/issues"
   },
-  "homepage": "https://github.com/darrenhinde/OpenAgentsControl#readme",
+  "homepage": "https://github.com/sina96/OpenCoderAgent-slim#readme",
   "devDependencies": {
     "glob": "^13.0.0"
   }

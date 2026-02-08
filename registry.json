@@ -1,7 +1,7 @@
 {
   "version": "2.0.0",
   "schema_version": "2.0.0",
-  "repository": "https://github.com/darrenhinde/OpenAgentsControl",
+  "repository": "https://github.com/sina96/OpenCoderAgent-slim",
   "categories": {
     "essential": "Minimal components for basic functionality",
     "standard": "Standard components for typical use",
@@ -30,7 +30,14 @@
           "subagent:workflow-designer",
           "subagent:command-creator"
         ],
-        "category": "meta"
+        "category": "meta",
+        "model-recommendation":
+        {
+          "claude": "anthropic/claude-sonnet-4-5",
+          "openai": "openai/gpt-5.2",
+          "opencode-zen": "opencode/claude-sonnet-4-5",
+          "google": "google/gemini-2.0-flash"
+        }
       },
       {
         "id": "technical-writer",
@@ -40,7 +47,14 @@
         "description": "Expert in documentation, API docs, and technical communication",
         "tags": [],
         "dependencies": [],
-        "category": "content"
+        "category": "content",
+        "model-recommendation":
+        {
+          "claude": "anthropic/claude-haiku-4-5",
+          "openai": "openai/gpt-5.2",
+          "opencode-zen": "opencode/glm-4.7",
+          "google": "google/gemini-2.0-flash"
+        }
       },
       {
         "id": "copywriter",
@@ -50,7 +64,14 @@
         "description": "Expert in persuasive writing, marketing copy, and brand messaging",
         "tags": [],
         "dependencies": [],
-        "category": "content"
+        "category": "content",
+        "model-recommendation":
+        {
+          "claude": "anthropic/claude-haiku-4-5",
+          "openai": "openai/gpt-5.2",
+          "opencode-zen": "opencode/glm-4.7",
+          "google": "google/gemini-2.0-flash"
+        }
       },
       {
         "id": "data-analyst",
@@ -60,7 +81,14 @@
         "description": "Expert in data analysis, visualization, and statistical insights",
         "tags": [],
         "dependencies": [],
-        "category": "data"
+        "category": "data",
+        "model-recommendation":
+        {
+          "claude": "anthropic/claude-opus-4-6",
+          "openai": "openai/gpt-5.2",
+          "opencode-zen": "opencode/claude-sonnet-4-5",
+          "google": "google/gemini-2.5-pro"
+        }
       },
       {
         "id": "eval-runner",
@@ -72,7 +100,8 @@
         "dependencies": [
           "context:component-planning"
         ],
-        "category": "standard"
+        "category": "standard",
+        "model-recommendation":{}
       },
       {
         "id": "repo-manager",
@@ -82,7 +111,8 @@
         "description": "Meta agent for managing OpenAgents Control repository development with context-aware planning, task breakdown, and automatic documentation",
         "tags": [],
         "dependencies": [],
-        "category": "meta"
+        "category": "meta",
+        "model-recommendation":{}
       },
       {
         "id": "opencoder",
@@ -108,7 +138,72 @@
           "context:component-planning",
           "context:external-libraries-workflow"
         ],
-        "category": "core"
+        "category": "core",
+        "model-recommendation":{
+          "claude": "anthropic/claude-sonnet-4-5",
+          "openai": "openai/gpt-5.3-codex",
+          "opencode-zen": "opencode/claude-sonnet-4-5",
+          "google": "google/gemini-3-pro-preview"
+        }
+      },
+      {
+        "id": "openplanner",
+        "name": "OpenPlanner",
+        "type": "agent",
+        "path": ".opencode/agent/core/openplanner.md",
+        "description": "Planning specialist for complex features, architecture design, and refactoring",
+        "tags": [
+          "planning",
+          "architecture",
+          "refactoring"
+        ],
+        "dependencies": [
+          "subagent:documentation",
+          "subagent:coder-agent",
+          "subagent:contextscout",
+          "subagent:externalscout",
+          "context:standards-code",
+          "context:task-delegation-basics",
+          "context:component-planning",
+          "context:external-libraries-workflow"
+        ],
+        "category": "core",
+        "model-recommendation":{
+          "claude": "anthropic/claude-opus-4-6",
+          "openai": "openai/gpt-5.2",
+          "opencode-zen": "opencode/claude-sonnet-4-5",
+          "google": "google/gemini-3-pro-preview"
+        }
+      },
+      {
+        "id": "openarchitect",
+        "name": "OpenArchitect",
+        "type": "agent",
+        "path": ".opencode/agent/core/openarchitect.md",
+        "description": "Architecture specialist for system design, scalability, and technical decision-making",
+        "tags": [
+          "architecture",
+          "system-design",
+          "scalability",
+          "technical-decision-making"
+        ],
+        "dependencies": [
+          "subagent:documentation",
+          "subagent:contextscout",
+          "subagent:externalscout",
+          "context:standards-architecture",
+          "context:standards-patterns",
+          "context:task-delegation-basics",
+          "context:component-planning",
+          "context:external-libraries-workflow"
+        ],
+        "category": "core",
+        "model-recommendation":{
+          "claude": "anthropic/claude-sonnet-4-5",
+          "openai": "openai/gpt-5.2",
+          "opencode-zen": "opencode/claude-sonnet-4-5",
+          "google": "google/gemini-3-pro-preview"
+        }
       },
       {
         "id": "openagent",
@@ -133,7 +228,13 @@
           "context:delegation-ref",
           "context:external-libraries-workflow"
         ],
-        "category": "core"
+        "category": "core",
+        "model-recommendation":{
+          "claude": "anthropic/claude-sonnet-4-5",
+          "openai": "openai/gpt-5.2",
+          "opencode-zen": "opencode/glm-4.7",
+          "google": "google/gemini-3-pro-preview"
+        }
       }
     ],
     "subagents": [
@@ -3106,46 +3207,51 @@
     ]
   },
   "profiles": {
-    "essential": {
-      "name": "Essential (Minimal)",
-      "description": "Minimal starter kit - universal agent with core subagents. Great for learning the system or lightweight tasks. Upgrade to Developer or Business for full features.",
-      "components": [
-        "agent:openagent",
-        "subagent:task-manager",
-        "subagent:contextscout",
-        "subagent:documentation",
-        "skill:task-management",
-        "command:context",
-        "command:add-context",
-        "command:clean",
-        "tool:env",
-        "context:essential-patterns",
-        "context:project-context",
-        "context:quick-start",
-        "context:standards-code",
-        "context:standards-patterns",
-        "context:standards-tests",
-        "context:standards-docs",
-        "context:standards-analysis",
-        "context:task-delegation-basics",
-        "context:session-management",
-        "context:feature-breakdown",
-        "context:workflows-review",
-        "context:system-context-guide",
-        "context:adding-skill-basics",
-        "config:env-example"
-      ]
-    },
-    "developer": {
-      "name": "Developer",
-      "description": "Complete software development environment with code generation, testing, review, and build tools. Includes UI/UX patterns, development principles, and design systems. Use OpenAgent for general tasks (1-4 files) or OpenCoder for complex architecture (4+ files). Recommended for most developers.",
-      "badge": "RECOMMENDED",
+    "minimalCoder": {
+      "name": "Minimal Coder",
+      "description": "Minimal software development environment with code generation, testing, review, and build tools.",
       "components": [
         "agent:openagent",
         "agent:opencoder",
         "subagent:task-manager",
+        "subagent:documentation",
+        "subagent:coder-agent",
+        "subagent:reviewer",
+        "subagent:build-agent",
+        "subagent:contextscout",
+        "skill:task-management",
+        "command:context",
+        "command:add-context",
+        "command:clean",
+        "command:optimize",
+        "command:analyze-patterns",
+        "tool:env",
+        "context:essential-patterns",
+        "context:project-context",
+        "context:quick-start",
+        "context:core/*",
+        "context:project-intelligence/*",
+        "context:adding-skill-basics",
+        "context:development/*",
+        "context:design-systems",
+        "context:clean-code",
+        "context:api-design",
+        "config:env-example",
+        "config:readme",
+        "context:openagents-repo/*"
+      ]
+    },
+    "standardCoder": {
+      "name": "Standard Coder",
+      "description": "Complete software development environment with code generation, testing, review, and build tools. Includes development principles, and design systems. Use OpenAgent for general tasks (1-4 files) or OpenCoder for complex architecture (4+ files). Recommended for most developers.",
+      "badge": "RECOMMENDED",
+      "components": [
+        "agent:openagent",
+        "agent:opencoder",
+        "agent:openplanner",
+        "agent:openarchitect",
+        "subagent:task-manager",
         "subagent:frontend-specialist",
-        "subagent:devops-specialist",
         "subagent:documentation",
         "subagent:coder-agent",
         "subagent:reviewer",
@@ -3168,13 +3274,10 @@
         "context:core/*",
         "context:project-intelligence/*",
         "context:adding-skill-basics",
-        "context:ui/*",
         "context:development/*",
         "context:design-systems",
         "context:react-patterns",
         "context:animation-basics",
-        "context:animation-components",
-        "context:animation-advanced",
         "context:ui-styling-standards",
         "context:clean-code",
         "context:api-design",
@@ -3183,42 +3286,14 @@
         "context:openagents-repo/*"
       ]
     },
-    "business": {
-      "name": "Business",
-      "description": "Business process automation, content creation, and visual workflows. Includes image generation, notifications, and documentation tools.",
-      "components": [
-        "agent:openagent",
-        "agent:copywriter",
-        "agent:technical-writer",
-        "agent:data-analyst",
-        "subagent:task-manager",
-        "subagent:contextscout",
-        "subagent:documentation",
-        "subagent:image-specialist",
-        "skill:task-management",
-        "command:context",
-        "command:add-context",
-        "command:clean",
-        "command:prompt-enhancer",
-        "tool:env",
-        "tool:gemini",
-        "plugin:notify",
-        "context:essential-patterns",
-        "context:project-context",
-        "context:quick-start",
-        "context:core/*",
-        "context:project-intelligence/*",
-        "context:adding-skill-basics",
-        "config:env-example",
-        "config:readme"
-      ]
-    },
-    "full": {
-      "name": "Full",
-      "description": "Everything included - all agents, subagents, tools, and plugins for maximum functionality. Includes UI/UX patterns, development principles, and design systems.",
+    "extendedCoder": {
+      "name": "Extended Coder",
+      "description": "Coding profile with everything included. All agents, subagents, tools, and plugins for maximum functionality. Includes UI/UX patterns, development principles, and design systems.",
       "components": [
         "agent:openagent",
         "agent:opencoder",
+        "agent:openplanner",
+        "agent:openarchitect",
         "agent:eval-runner",
         "agent:copywriter",
         "agent:technical-writer",
@@ -3274,6 +3349,8 @@
       "components": [
         "agent:openagent",
         "agent:opencoder",
+        "agent:openplanner",
+        "agent:openarchitect",
         "agent:system-builder",
         "agent:repo-manager",
         "agent:eval-runner",

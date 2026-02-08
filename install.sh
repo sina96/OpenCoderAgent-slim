@@ -44,9 +44,9 @@ else
 fi
 
 # Configuration
-REPO_URL="https://github.com/darrenhinde/OpenAgentsControl"
+REPO_URL="https://github.com/sina96/OpenCoderAgent-slim"
 BRANCH="${OPENCODE_BRANCH:-main}"  # Allow override via environment variable
-RAW_URL="https://raw.githubusercontent.com/darrenhinde/OpenAgentsControl/${BRANCH}"
+RAW_URL="https://raw.githubusercontent.com/sina96/OpenCoderAgent-slim/${BRANCH}"
 
 # Registry URL - supports local fallback for development
 # Priority: 1) REGISTRY_URL env var, 2) Local registry.json, 3) Remote GitHub
@@ -74,6 +74,18 @@ PROFILE=""
 NON_INTERACTIVE=false
 CUSTOM_INSTALL_DIR=""  # Set via --install-dir argument
 
+# Connected Providers configuration
+CONNECTED_PROVIDERS_CONFIGURED=false
+PROVIDER_CLAUDE=false
+PROVIDER_CLAUDE_PLAN=""
+PROVIDER_OPENAI=false
+PROVIDER_OPENCODE_ZEN=false
+PROVIDER_GOOGLE_GEMINI=false
+
+# Models recommended for free usage:
+FREE_MODELS=("opencode/big-pickle" "opencode/kimi-k2.5-free" "opencode/minimax-m2.1-free")
+
+
 #############################################################################
 # Utility Functions
 #############################################################################
@@ -90,7 +102,7 @@ print_header() {
     echo -e "${CYAN}${BOLD}"
     echo "╔════════════════════════════════════════════════════════════════╗"
     echo "║                                                                ║"
-    echo "║           OpenAgents Control Installer v1.0.0                 ║"
+    echo "║           OpenCoderAgent-slim Installer v0.1.0                 ║"
     echo "║                                                                ║"
     echo "╚════════════════════════════════════════════════════════════════╝"
     echo -e "${NC}"
@@ -287,6 +299,8 @@ fetch_registry() {
         fi
         print_success "Registry fetched successfully"
     fi
+
+    print_success "Registry fetched successfully from $REGISTRY_URL"
 }
 
 get_profile_components() {
@@ -477,7 +491,7 @@ check_interactive_mode() {
         echo "For interactive mode, download the script first:"
         echo ""
         echo -e "${CYAN}# Download the script${NC}"
-        echo "curl -fsSL https://raw.githubusercontent.com/darrenhinde/OpenAgentsControl/main/install.sh -o install.sh"
+        echo "curl -fsSL https://raw.githubusercontent.com/sina96/OpenCoderAgent-slim/main/install.sh -o install.sh"
         echo ""
         echo -e "${CYAN}# Run interactively${NC}"
         echo "bash install.sh"
@@ -485,9 +499,9 @@ check_interactive_mode() {
         echo "Or use a profile directly:"
         echo ""
         echo -e "${CYAN}# Quick install with profile${NC}"
-        echo "curl -fsSL https://raw.githubusercontent.com/darrenhinde/OpenAgentsControl/main/install.sh | bash -s essential"
+        echo "curl -fsSL https://raw.githubusercontent.com/sina96/OpenCoderAgent-slim/main/install.sh | bash -s essential"
         echo ""
-        echo "Available profiles: essential, developer, business, full, advanced"
+        echo "Available profiles: minimalCoder, standardCoder, extendedCoder, advanced"
         echo ""
         cleanup_and_exit 1
     fi
@@ -581,6 +595,199 @@ show_install_location_menu() {
     esac
 }
 
+#############################################################################
+# Connected Providers Configuration
+#############################################################################
+
+fetch_latest_models() {
+    local api_url="https://models.dev/api.json"
+    local providers=("anthropic" "openai" "opencode" "google")
+    local models_count=30
+    
+    print_info "Fetching latest models from models.dev..."
+    
+    # Fetch the API
+    local api_response
+    api_response=$(curl -fsSL "$api_url" 2>/dev/null)
+    
+    if [ -z "$api_response" ]; then
+        print_error "Failed to fetch models from $api_url"
+        return 1
+    fi
+    
+    # Initialize global array
+    LATEST_MODELS=()
+    
+    # Process each provider
+    for provider in "${providers[@]}"; do
+        # Extract models for this provider and get the last 5
+        local provider_models
+        provider_models=$(echo "$api_response" | jq_exec ".${provider}.models | to_entries | .[-${models_count}:][] | \"\(.value.id)|\(.value.family)\"" 2>/dev/null)
+        
+        if [ -z "$provider_models" ]; then
+            print_warning "No models found for provider: $provider"
+            continue
+        fi
+        
+        # Add each model to the array
+        while IFS='|' read -r model_id model_family; do
+            if [ -n "$model_id" ] && [ -n "$model_family" ]; then
+                LATEST_MODELS+=("${provider}|${model_id}|${model_family}")
+            fi
+        done <<< "$provider_models"
+    done
+    
+    # Echo the array for testing
+    if [ ${#LATEST_MODELS[@]} -gt 0 ]; then
+        print_success "Fetched ${#LATEST_MODELS[@]} models"
+        #print_info "Latest models:"
+        #for model in "${LATEST_MODELS[@]}"; do
+        #    echo "  $model"
+        #done
+    else
+        print_warning "No models were fetched"
+        return 1
+    fi
+    
+    return 0
+}
+
+model_exists() {
+    local provider="$1"
+    local model_id="$2"
+    for model in "${LATEST_MODELS[@]}"; do
+        # LATEST_MODELS format: provider|model_id|family
+        if [[ "$model" == "${provider}|${model_id}|"* ]]; then
+            return 0
+        fi
+    done
+    return 1
+}
+
+show_connected_providers_menu() {
+    check_interactive_mode
+    
+    
+    clear
+    print_header
+    
+    echo -e "${BOLD}Connected Providers Configuration${NC}\n"
+    echo "Configure which AI providers you have connected to OpenCode."
+    echo ""
+    
+    # First question - ask if they want to configure at all
+    echo -e "${CYAN}Do you want to configure connected providers?${NC}"
+    echo "  (y) Yes - configure each provider individually"
+    echo "  (n) No - skip this step"
+    echo ""
+    read -r -p "Enter your choice [y/n]: " configure_providers_choice
+    
+    case $configure_providers_choice in
+        [Nn])
+            # No - just skip, will ask again next time
+            print_info "Skipping provider configuration (you can configure later)"
+            sleep 1
+            return
+            ;;
+        [Yy])
+            # Yes - proceed with individual questions
+            CONNECTED_PROVIDERS_CONFIGURED=true
+            echo ""
+            ;;
+        *)
+            print_error "Invalid choice"
+            sleep 2
+            show_connected_providers_menu
+            return
+            ;;
+    esac
+    
+    # Individual provider questions (no "no to all" option here)
+    echo -e "${BOLD}Configure each provider:${NC}\n"
+    
+    echo ""
+
+    # Claude
+    read -r -p "Have you connected Claude? [y/N]: " claude_choice
+    if [[ $claude_choice =~ ^[Yy] ]]; then
+        PROVIDER_CLAUDE=true
+        print_success "Claude: Connected"
+        echo ""
+    
+        # Follow-up question for Claude plan
+        echo -e "${CYAN}Which Claude plan do you have?${NC}"
+        echo "  1) Claude Pro"
+        echo "  2) Claude Max20"
+        echo "  3) Claude Max100"
+        echo "  4) Skip / Other"
+        echo ""
+        read -r -p "Enter your choice [1-4]: " claude_plan_choice
+    
+        case $claude_plan_choice in
+            1)
+                PROVIDER_CLAUDE_PLAN="pro"
+                print_info "Plan: Claude Pro"
+                ;;
+            2)
+                PROVIDER_CLAUDE_PLAN="max20"
+                print_info "Plan: Claude Max20"
+                ;;
+            3)
+                PROVIDER_CLAUDE_PLAN="max100"
+                print_info "Plan: Claude Max100"
+                ;;
+            *)
+                PROVIDER_CLAUDE_PLAN=""
+                print_info "Plan: Not specified"
+                ;;
+        esac
+    else
+    print_info "Claude: Not connected"
+    fi
+    echo ""
+    
+    # OpenAI
+    read -r -p "Have you connected OpenAI? [y/N]: " openai_choice
+    if [[ $openai_choice =~ ^[Yy] ]]; then
+        PROVIDER_OPENAI=true
+        print_success "OpenAI: Connected"
+    else
+        print_info "OpenAI: Not connected"
+    fi
+    echo ""
+    
+    # Opencode-zen
+    read -r -p "Have you connected Opencode-zen? [y/N]: " opencode_zen_choice
+    if [[ $opencode_zen_choice =~ ^[Yy] ]]; then
+        PROVIDER_OPENCODE_ZEN=true
+        print_success "Opencode-zen: Connected"
+    else
+        print_info "Opencode-zen: Not connected"
+    fi
+    echo ""
+    
+    # Google Gemini
+    read -r -p "Have you connected Google Gemini? [y/N]: " gemini_choice
+    if [[ $gemini_choice =~ ^[Yy] ]]; then
+        PROVIDER_GOOGLE_GEMINI=true
+        print_success "Google Gemini: Connected"
+    else
+        print_info "Google Gemini: Not connected"
+    fi
+    echo ""
+    
+    # Summary
+    echo -e "${BOLD}Provider Configuration Summary:${NC}"
+    echo "  Claude: $([ "$PROVIDER_CLAUDE" = true ] && echo "✓ Connected ($PROVIDER_CLAUDE_PLAN)" || echo "✗ Not connected")"
+    echo "  OpenAI: $([ "$PROVIDER_OPENAI" = true ] && echo "✓ Connected" || echo "✗ Not connected")"
+    echo "  Opencode-zen: $([ "$PROVIDER_OPENCODE_ZEN" = true ] && echo "✓ Connected" || echo "✗ Not connected")"
+    echo "  Google Gemini: $([ "$PROVIDER_GOOGLE_GEMINI" = true ] && echo "✓ Connected" || echo "✗ Not connected")"
+    echo ""
+
+    
+    
+}
+
 show_main_menu() {
     check_interactive_mode
     
@@ -614,78 +821,69 @@ show_profile_menu() {
     
     echo -e "${BOLD}Available Installation Profiles:${NC}\n"
     
-    # Essential profile
-    local essential_name
-    essential_name=$(jq_exec '.profiles.essential.name' "$TEMP_DIR/registry.json")
-    local essential_desc
-    essential_desc=$(jq_exec '.profiles.essential.description' "$TEMP_DIR/registry.json")
-    local essential_count
-    essential_count=$(jq_exec '.profiles.essential.components | length' "$TEMP_DIR/registry.json")
-    echo -e "  ${GREEN}1) ${essential_name}${NC}"
-    echo -e "     ${essential_desc}"
-    echo -e "     Components: ${essential_count}\n"
+    # Minimal Coder profile
+    local minimal_coder_name
+    minimal_coder_name=$(jq_exec '.profiles.minimalCoder.name' "$TEMP_DIR/registry.json")
+    local minimal_coder_desc
+    minimal_coder_desc=$(jq_exec '.profiles.minimalCoder.description' "$TEMP_DIR/registry.json")
+    local minimal_coder_count
+    minimal_coder_count=$(jq_exec '.profiles.minimalCoder.components | length' "$TEMP_DIR/registry.json")
+    echo -e "  ${GREEN}1) ${minimal_coder_name}${NC}"
+    echo -e "     ${minimal_coder_desc}"
+    echo -e "     Components: ${minimal_coder_count}\n"
     
-    # Developer profile
-    local dev_desc
-    dev_desc=$(jq_exec '.profiles.developer.description' "$TEMP_DIR/registry.json")
-    local dev_count
-    dev_count=$(jq_exec '.profiles.developer.components | length' "$TEMP_DIR/registry.json")
-    local dev_badge
-    dev_badge=$(jq_exec '.profiles.developer.badge // ""' "$TEMP_DIR/registry.json")
-    if [ -n "$dev_badge" ]; then
-        echo -e "  ${BLUE}2) Developer ${GREEN}[${dev_badge}]${NC}"
+    # Standard Coder profile
+    local standard_coder_name
+    standard_coder_name=$(jq_exec '.profiles.standardCoder.name' "$TEMP_DIR/registry.json")
+    local standard_coder_desc
+    standard_coder_desc=$(jq_exec '.profiles.standardCoder.description' "$TEMP_DIR/registry.json")
+    local standard_coder_count
+    standard_coder_count=$(jq_exec '.profiles.standardCoder.components | length' "$TEMP_DIR/registry.json")
+    local standard_coder_badge
+    standard_coder_badge=$(jq_exec '.profiles.standardCoder.badge // ""' "$TEMP_DIR/registry.json")
+    if [ -n "$standard_coder_badge" ]; then
+        echo -e "  ${BLUE}2) ${standard_coder_name} ${GREEN}[${standard_coder_badge}]${NC}"
     else
-        echo -e "  ${BLUE}2) Developer${NC}"
+        echo -e "  ${BLUE}2) ${standard_coder_name}${NC}"
     fi
-    echo -e "     ${dev_desc}"
-    echo -e "     Components: ${dev_count}\n"
+    echo -e "     ${standard_coder_desc}"
+    echo -e "     Components: ${standard_coder_count}\n"
+
     
-    # Business profile
-    local business_name
-    business_name=$(jq_exec '.profiles.business.name' "$TEMP_DIR/registry.json")
-    local business_desc
-    business_desc=$(jq_exec '.profiles.business.description' "$TEMP_DIR/registry.json")
-    local business_count
-    business_count=$(jq_exec '.profiles.business.components | length' "$TEMP_DIR/registry.json")
-    echo -e "  ${CYAN}3) ${business_name}${NC}"
-    echo -e "     ${business_desc}"
-    echo -e "     Components: ${business_count}\n"
+    # Extended Coder profile
+    local extended_coder_name
+    extended_coder_name=$(jq_exec '.profiles.extendedCoder.name' "$TEMP_DIR/registry.json")
+    local extended_coder_desc
+    extended_coder_desc=$(jq_exec '.profiles.extendedCoder.description' "$TEMP_DIR/registry.json")
+    local extended_coder_count
+    extended_coder_count=$(jq_exec '.profiles.extendedCoder.components | length' "$TEMP_DIR/registry.json")
+    echo -e "  ${MAGENTA}4) ${extended_coder_name}${NC}"
+    echo -e "     ${extended_coder_desc}"
+    echo -e "     Components: ${extended_coder_count}\n"
     
-    # Full profile
-    local full_name
-    full_name=$(jq_exec '.profiles.full.name' "$TEMP_DIR/registry.json")
-    local full_desc
-    full_desc=$(jq_exec '.profiles.full.description' "$TEMP_DIR/registry.json")
-    local full_count
-    full_count=$(jq_exec '.profiles.full.components | length' "$TEMP_DIR/registry.json")
-    echo -e "  ${MAGENTA}4) ${full_name}${NC}"
-    echo -e "     ${full_desc}"
-    echo -e "     Components: ${full_count}\n"
-    
-    # Advanced profile
-    local adv_name
-    adv_name=$(jq_exec '.profiles.advanced.name' "$TEMP_DIR/registry.json")
-    local adv_desc
-    adv_desc=$(jq_exec '.profiles.advanced.description' "$TEMP_DIR/registry.json")
-    local adv_count
-    adv_count=$(jq_exec '.profiles.advanced.components | length' "$TEMP_DIR/registry.json")
-    echo -e "  ${YELLOW}5) ${adv_name}${NC}"
-    echo -e "     ${adv_desc}"
-    echo -e "     Components: ${adv_count}\n"
+    # Advanced (Meta-Level) profile
+    local advanced_name
+    advanced_name=$(jq_exec '.profiles.advanced.name' "$TEMP_DIR/registry.json")
+    local advanced_desc
+    advanced_desc=$(jq_exec '.profiles.advanced.description' "$TEMP_DIR/registry.json")
+    local advanced_count
+    advanced_count=$(jq_exec '.profiles.advanced.components | length' "$TEMP_DIR/registry.json")
+    echo -e "  ${YELLOW}5) ${advanced_name}${NC}"
+    echo -e "     ${advanced_desc}"
+    echo -e "     Components: ${advanced_count}\n"
     
     echo "  6) Back to main menu"
     echo ""
     read -r -p "Enter your choice [1-6]: " choice
     
     case $choice in
-        1) PROFILE="essential" ;;
-        2) PROFILE="developer" ;;
-        3) PROFILE="business" ;;
-        4) PROFILE="full" ;;
+        1) PROFILE="minimalCoder" ;;
+        2) PROFILE="standardCoder" ;;
+        3) PROFILE="extendedCoder" ;;
         5) PROFILE="advanced" ;;
         6) show_main_menu; return ;;
         *) print_error "Invalid choice"; sleep 2; show_profile_menu; return ;;
-    esac
+    esac  
     
     # Load profile components (compatible with bash 3.2+)
     SELECTED_COMPONENTS=()
@@ -852,52 +1050,67 @@ show_installation_preview() {
     fi
     print_header
     
-    echo -e "${BOLD}Installation Preview${NC}\n"
+    echo -e "\n${BOLD}${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${BOLD}  📦 Installation Preview${NC}"
+    echo -e "${BOLD}${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}\n"
     
+    # Show installation details
     if [ -n "$PROFILE" ]; then
-        echo -e "Profile: ${GREEN}${PROFILE}${NC}"
+        local profile_name
+        profile_name=$(jq_exec ".profiles.${PROFILE}.name" "$TEMP_DIR/registry.json" 2>/dev/null || echo "$PROFILE")
+        echo -e "  ${GREEN}▸${NC} Profile:    ${BOLD}${profile_name}${NC}"
     else
-        echo -e "Mode: ${GREEN}Custom${NC}"
+        echo -e "  ${GREEN}▸${NC} Mode:       ${BOLD}Custom${NC}"
     fi
+    echo -e "  ${CYAN}▸${NC} Location:   ${INSTALL_DIR}"
+    echo -e "  ${MAGENTA}▸${NC} Components: ${BOLD}${#SELECTED_COMPONENTS[@]}${NC} total"
+    echo ""
     
-    echo -e "Installation directory: ${CYAN}${INSTALL_DIR}${NC}"
+    # Group by type with better formatting
+    local types=("agent:🤖:Agents" "subagent:🔧:Subagents" "command:⚡:Commands" \
+                 "tool:🛠️:Tools" "plugin:🔌:Plugins" "skill:📚:Skills" \
+                 "context:📄:Contexts" "config:⚙️:Config")
     
-    echo -e "\nComponents to install (${#SELECTED_COMPONENTS[@]} total):\n"
-    
-    # Group by type
-    local agents=()
-    local subagents=()
-    local commands=()
-    local tools=()
-    local plugins=()
-    local skills=()
-    local contexts=()
-    local configs=()
-    
-    for comp in "${SELECTED_COMPONENTS[@]}"; do
-        local type="${comp%%:*}"
-        case $type in
-            agent) agents+=("$comp") ;;
-            subagent) subagents+=("$comp") ;;
-            command) commands+=("$comp") ;;
-            tool) tools+=("$comp") ;;
-            plugin) plugins+=("$comp") ;;
-            skill) skills+=("$comp") ;;
-            context) contexts+=("$comp") ;;
-            config) configs+=("$comp") ;;
-        esac
+    for type_info in "${types[@]}"; do
+        IFS=':' read -r type icon label <<< "$type_info"
+        
+        # Get components of this type
+        local comps=()
+        for comp in "${SELECTED_COMPONENTS[@]}"; do
+            [ "${comp%%:*}" = "$type" ] && comps+=("${comp##*:}")
+        done
+        
+        [ ${#comps[@]} -eq 0 ] && continue
+        
+        # Print category header
+        echo -e "  ${icon} ${BOLD}${label}${NC} (${#comps[@]})"
+        
+        # Print components in columns (2 per line)
+        local col=0
+        for comp in "${comps[@]}"; do
+            local name
+            name=$(jq_exec ".components.$(get_registry_key "$type")[]? | 
+                   select(.id == \"${comp}\" or (.aliases // [] | index(\"${comp}\"))) | 
+                   .name" "$TEMP_DIR/registry.json" 2>/dev/null || echo "$comp")
+            
+            # Skip empty names
+            [ -z "$name" ] && continue
+            
+            if [ $col -eq 0 ]; then
+                printf "      • %-35s" "$name"
+                col=1
+            else
+                printf "• %s\n" "$name"
+                col=0
+            fi
+        done
+        if [ $col -eq 1 ]; then
+            printf "\n"
+        fi
+        echo ""
     done
     
-    [ ${#agents[@]} -gt 0 ] && echo -e "${CYAN}Agents (${#agents[@]}):${NC} ${agents[*]##*:}"
-    [ ${#subagents[@]} -gt 0 ] && echo -e "${CYAN}Subagents (${#subagents[@]}):${NC} ${subagents[*]##*:}"
-    [ ${#commands[@]} -gt 0 ] && echo -e "${CYAN}Commands (${#commands[@]}):${NC} ${commands[*]##*:}"
-    [ ${#tools[@]} -gt 0 ] && echo -e "${CYAN}Tools (${#tools[@]}):${NC} ${tools[*]##*:}"
-    [ ${#plugins[@]} -gt 0 ] && echo -e "${CYAN}Plugins (${#plugins[@]}):${NC} ${plugins[*]##*:}"
-    [ ${#skills[@]} -gt 0 ] && echo -e "${CYAN}Skills (${#skills[@]}):${NC} ${skills[*]##*:}"
-    [ ${#contexts[@]} -gt 0 ] && echo -e "${CYAN}Contexts (${#contexts[@]}):${NC} ${contexts[*]##*:}"
-    [ ${#configs[@]} -gt 0 ] && echo -e "${CYAN}Config (${#configs[@]}):${NC} ${configs[*]##*:}"
-    
-    echo ""
+    echo -e "${CYAN}────────────────────────────────────────${NC}\n"
     
     # Skip confirmation if profile was provided via command line
     if [ "$NON_INTERACTIVE" = true ]; then
@@ -1226,8 +1439,141 @@ perform_installation() {
 # Post-Installation
 #############################################################################
 
+show_agent_model_recommendations() {
+    print_step "Agent Model Recommendations"
+    # Only show if providers are configured AND models were accepted
+    if [ "$CONNECTED_PROVIDERS_CONFIGURED" = false ]; then
+        echo -e "To get the best experience with your installed agents:${NC}\n"
+        
+        echo -e "${YELLOW}Option 1: Connect AI Providers${NC}"
+        echo "  Configure providers to access premium models:"
+        echo "    • Claude (Anthropic)"
+        echo "    • OpenAI (GPT models)"
+        echo "    • Opencode-zen"
+        echo "    • Google Gemini"
+        echo ""
+        echo "  Run the installer again and choose 'Yes' when asked about providers."
+        echo ""
+        
+        echo -e "${GREEN}Option 2: Use Free Models${NC}"
+        echo "  Start immediately with these free models:"
+        for model in "${FREE_MODELS[@]}"; do
+            echo "    • $model"
+        done
+        echo ""
+        echo "  These models work without any provider configuration!"
+        echo ""
+        
+        return
+    fi
+    
+    echo -e "${BOLD}Based on your installed agents and configured providers:${NC}\n"
+    
+    # Build list of installed agents from SELECTED_COMPONENTS
+    local installed_agents=()
+    for comp in "${SELECTED_COMPONENTS[@]}"; do
+        local type="${comp%%:*}"
+        if [ "$type" = "agent" ]; then
+            local id="${comp##*:}"
+            installed_agents+=("$id")
+        fi
+    done
+    
+    # If no agents installed, skip
+    if [ ${#installed_agents[@]} -eq 0 ]; then
+        return
+    fi
+    
+    # For each installed agent, fetch model recommendations and verify against LATEST_MODELS
+    for agent_id in "${installed_agents[@]}"; do
+        # Get agent name and model recommendations from registry
+        local agent_name
+        agent_name=$(jq_exec ".components.agents[]? | select(.id == \"${agent_id}\") | .name" "$TEMP_DIR/registry.json")
+        
+        # Get model recommendations object
+        local recommendations
+        recommendations=$(jq_exec ".components.agents[]? | select(.id == \"${agent_id}\") | .\"model-recommendation\"" "$TEMP_DIR/registry.json")
+        
+        # Skip if no recommendations or empty object
+        if [ -z "$recommendations" ] || [ "$recommendations" = "{}" ] || [ "$recommendations" = "null" ]; then
+            continue
+        fi
+        
+        # Extract recommendations for each configured provider
+        local has_valid_rec=false
+        local rec_text=""
+        
+        # Claude
+        if [ "$PROVIDER_CLAUDE" = true ]; then
+            local claude_model
+            claude_model=$(echo "$recommendations" | jq_exec '.claude // empty')
+            if [ -n "$claude_model" ] && [ "$claude_model" != "null" ]; then
+                # Verify against LATEST_MODELS
+                local provider="${claude_model%%/*}"
+                local model_id="${claude_model##*/}"
+                if model_exists "$provider" "$model_id"; then
+                    rec_text="${rec_text}    ${CYAN}Claude:${NC} ${claude_model}\n"
+                    has_valid_rec=true
+                fi
+            fi
+        fi
+        
+        # OpenAI
+        if [ "$PROVIDER_OPENAI" = true ]; then
+            local openai_model
+            openai_model=$(echo "$recommendations" | jq_exec '.openai // empty')
+            if [ -n "$openai_model" ] && [ "$openai_model" != "null" ]; then
+                local provider="${openai_model%%/*}"
+                local model_id="${openai_model##*/}"
+                if model_exists "$provider" "$model_id"; then
+                    rec_text="${rec_text}    ${CYAN}OpenAI:${NC} ${openai_model}\n"
+                    has_valid_rec=true
+                fi
+            fi
+        fi
+        
+        # Opencode-zen
+        if [ "$PROVIDER_OPENCODE_ZEN" = true ]; then
+            local opencode_model
+            opencode_model=$(echo "$recommendations" | jq_exec '.["opencode-zen"] // empty')
+            if [ -n "$opencode_model" ] && [ "$opencode_model" != "null" ]; then
+                local provider="${opencode_model%%/*}"
+                local model_id="${opencode_model##*/}"
+                if model_exists "$provider" "$model_id"; then
+                    rec_text="${rec_text}    ${CYAN}Opencode-zen:${NC} ${opencode_model}\n"
+                    has_valid_rec=true
+                fi
+            fi
+        fi
+        
+        # Google Gemini
+        if [ "$PROVIDER_GOOGLE_GEMINI" = true ]; then
+            local google_model
+            google_model=$(echo "$recommendations" | jq_exec '.google // empty')
+            if [ -n "$google_model" ] && [ "$google_model" != "null" ]; then
+                local provider="${google_model%%/*}"
+                local model_id="${google_model##*/}"
+                if model_exists "$provider" "$model_id"; then
+                    rec_text="${rec_text}    ${CYAN}Google:${NC} ${google_model}\n"
+                    has_valid_rec=true
+                fi
+            fi
+        fi
+        
+        # Only print if we have valid recommendations
+        if [ "$has_valid_rec" = true ]; then
+            echo -e "  ${GREEN}${agent_name}${NC} (${agent_id})"
+            echo -e "$rec_text"
+        fi
+    done
+    
+    echo ""
+}
+
 show_post_install() {
     echo ""
+    show_agent_model_recommendations
+    
     print_step "Next Steps"
     
     echo "1. Review the installed components in ${CYAN}${INSTALL_DIR}/${NC}"
@@ -1337,27 +1683,21 @@ main() {
                     exit 1
                 fi
                 ;;
-            essential|--essential)
+            minimal-coder|--minimal-coder)
                 INSTALL_MODE="profile"
-                PROFILE="essential"
+                PROFILE="minimalCoder"
                 NON_INTERACTIVE=true
                 shift
                 ;;
-            developer|--developer)
+            standard-coder|--standard-coder)
                 INSTALL_MODE="profile"
-                PROFILE="developer"
+                PROFILE="standardCoder"
                 NON_INTERACTIVE=true
                 shift
                 ;;
-            business|--business)
+            extended-coder|--extended-coder)
                 INSTALL_MODE="profile"
-                PROFILE="business"
-                NON_INTERACTIVE=true
-                shift
-                ;;
-            full|--full)
-                INSTALL_MODE="profile"
-                PROFILE="full"
+                PROFILE="extendedCoder"
                 NON_INTERACTIVE=true
                 shift
                 ;;
@@ -1378,10 +1718,9 @@ main() {
                 echo "Usage: $0 [PROFILE] [OPTIONS]"
                 echo ""
                 echo -e "${BOLD}Profiles:${NC}"
-                echo "  essential, --essential    Minimal setup with core agents"
-                echo "  developer, --developer    Code-focused development tools"
-                echo "  business, --business      Content and business-focused tools"
-                echo "  full, --full              Everything except system-builder"
+                echo "  minimalCoder, --minimalCoder    Minimal setup with core agents"
+                echo "  standardCoder, --standardCoder    Code-focused development tools"
+                echo "  extendedCoder, --extendedCoder    Everything except system-builder"
                 echo "  advanced, --advanced      Complete system with all components"
                 echo ""
                 echo -e "${BOLD}Options:${NC}"
@@ -1400,23 +1739,23 @@ main() {
                 echo "  $0"
                 echo ""
                 echo "  ${CYAN}# Quick install with default location (.opencode/)${NC}"
-                echo "  $0 developer"
+                echo "  $0 standardCoder"
                 echo ""
                 echo "  ${CYAN}# Install to global location (Linux/macOS)${NC}"
-                echo "  $0 developer --install-dir ~/.config/opencode"
+                echo "  $0 standardCoder --install-dir ~/.config/opencode"
                 echo ""
                 echo "  ${CYAN}# Install to global location (Windows Git Bash)${NC}"
-                echo "  $0 developer --install-dir ~/.config/opencode"
+                echo "  $0 standardCoder --install-dir ~/.config/opencode"
                 echo ""
                 echo "  ${CYAN}# Install to custom location${NC}"
-                echo "  $0 essential --install-dir ~/my-agents"
+                echo "  $0 standardCoder --install-dir ~/my-agents"
                 echo ""
                 echo "  ${CYAN}# Using environment variable${NC}"
                 echo "  export OPENCODE_INSTALL_DIR=~/.config/opencode"
                 echo "  $0 developer"
                 echo ""
                 echo "  ${CYAN}# Install from URL (non-interactive)${NC}"
-                echo "  curl -fsSL https://raw.githubusercontent.com/darrenhinde/OpenAgentsControl/main/install.sh | bash -s developer"
+                echo "  curl -fsSL https://raw.githubusercontent.com/sina96/OpenCoderAgent-slim/main/install.sh | bash -s standardCoder"
                 echo ""
                 echo -e "${BOLD}Platform Support:${NC}"
                 echo "  ✓ Linux (bash 3.2+)"
@@ -1452,6 +1791,9 @@ main() {
     check_dependencies
     fetch_registry
     
+    # Show connected providers configuration (first step)
+    show_connected_providers_menu
+
     if [ -n "$PROFILE" ]; then
         # Non-interactive mode (compatible with bash 3.2+)
         SELECTED_COMPONENTS=()
